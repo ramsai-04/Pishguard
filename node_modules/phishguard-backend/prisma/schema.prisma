@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  scans        Scan[]
+}
+
+model Scan {
+  id          String   @id @default(cuid())
+  url         String
+  domain      String
+  isPhishing  Boolean
+  score       Int
+  explanation String
+  category    String
+  isBlocked   Boolean  @default(false)
+  featureData Json?
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([domain])
+}
+
+model BlockedDomain {
+  id         String   @id @default(cuid())
+  domain     String   @unique
+  firstSeen  DateTime @default(now())
+  lastSeen   DateTime @updatedAt
+  flaggedCnt Int      @default(1)
+}
