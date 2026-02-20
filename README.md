@@ -1,2 +1,0 @@
-# Pishguard
-pishing website detection
