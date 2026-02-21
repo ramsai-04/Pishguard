@@ -16,6 +16,10 @@ cp .env.example .env
 Set:
 
 `VITE_API_BASE_URL=http://localhost:4000`
+`VITE_FIREBASE_API_KEY=...`
+`VITE_FIREBASE_AUTH_DOMAIN=...`
+`VITE_FIREBASE_PROJECT_ID=...`
+`VITE_FIREBASE_APP_ID=...`
 
 Run:
 
@@ -35,6 +39,10 @@ Update `.env`:
 
 - `DATABASE_URL` for PostgreSQL
 - `JWT_SECRET` with a long random value
+- Firebase Admin credentials (for Firebase login verification):
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_PRIVATE_KEY` (use `\n` for line breaks)
 
 Generate Prisma client and migrate:
 
@@ -54,8 +62,10 @@ npm run dev
 - `GET /health`
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/firebase`
 - `GET /auth/me` (Bearer token)
 - `POST /scan` (Bearer token)
+- `POST /feedback` (Bearer token)
 
 ## ML Model
 

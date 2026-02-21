@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ScanResult, RelatedSite, DashboardStats, CategoryStats } from '@/types';
+import { getFirebaseAuthToken } from '@/lib/firebase';
 
 interface ScanContextType {
   scanHistory: ScanResult[];
@@ -75,7 +76,7 @@ export const ScanProvider: React.FC<ScanProviderProps> = ({ children }) => {
   };
 
   const loadHistoryFromServer = async () => {
-    const token = localStorage.getItem('phishguard_token');
+    const token = await getFirebaseAuthToken();
     if (!apiBaseUrl || !token) {
       setScanHistory([]);
       setBlockedSites([]);
@@ -147,7 +148,8 @@ export const ScanProvider: React.FC<ScanProviderProps> = ({ children }) => {
 
   const addScanResult = (result: ScanResult) => {
     setLastScannedCategory(result.category);
-    if (getPrivacyFlags().doNotStoreUrls) {
+    const privacy = getPrivacyFlags();
+    if (!privacy.saveHistory || privacy.doNotStoreUrls) {
       return;
     }
     setScanHistory((prev) => {
@@ -205,7 +207,7 @@ export const ScanProvider: React.FC<ScanProviderProps> = ({ children }) => {
   };
 
   const clearHistory = async () => {
-    const token = localStorage.getItem('phishguard_token');
+    const token = await getFirebaseAuthToken();
     if (apiBaseUrl && token) {
       const response = await fetch(`${apiBaseUrl}/scan/history`, {
         method: 'DELETE',

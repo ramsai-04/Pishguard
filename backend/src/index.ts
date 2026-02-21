@@ -7,6 +7,7 @@ import { env } from "./config/env.js";
 import { authRouter } from "./routes/auth.js";
 import { scanRouter } from "./routes/scan.js";
 import { healthRouter } from "./routes/health.js";
+import { feedbackRouter } from "./routes/feedback.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 import { initializePhishingModel } from "./ml/xgboost-model.js";
 
@@ -34,6 +35,7 @@ const scanLimiter = rateLimit({
 app.use("/health", healthRouter);
 app.use("/auth", authLimiter, authRouter);
 app.use("/scan", scanLimiter, scanRouter);
+app.use("/feedback", authLimiter, feedbackRouter);
 
 app.use(notFound);
 app.use(errorHandler);

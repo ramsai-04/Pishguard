@@ -32,6 +32,9 @@ const EnvSchema = z.object({
   RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_SCAN_MAX: z.coerce.number().int().positive().default(60),
   PHISHING_BLOCKLIST_TTL_HOURS: z.coerce.number().int().positive().default(168),
+  FIREBASE_PROJECT_ID: z.string().default(""),
+  FIREBASE_CLIENT_EMAIL: z.string().default(""),
+  FIREBASE_PRIVATE_KEY: z.string().default(""),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

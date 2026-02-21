@@ -9,12 +9,14 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
+  firebaseUid  String?  @unique
   name         String
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   scans        Scan[]
+  feedback     Feedback[]
 }
 
 model Scan {
@@ -41,4 +43,17 @@ model BlockedDomain {
   firstSeen  DateTime @default(now())
   lastSeen   DateTime @updatedAt
   flaggedCnt Int      @default(1)
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  websiteUrl  String
+  reason      String
+  description String
+  userEmail   String?
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

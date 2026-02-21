@@ -1,89 +1,72 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { signAuthToken } from "../lib/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
+import { isFirebaseConfigured, verifyFirebaseIdToken } from "../lib/firebase-admin.js";
 
-const registerSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z.string().min(8).max(200),
-});
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).max(200),
+const firebaseAuthSchema = z.object({
+  idToken: z.string().min(10),
 });
 
 export const authRouter = Router();
 
-authRouter.post("/register", async (req, res, next) => {
-  try {
-    const payload = registerSchema.parse(req.body);
-    const email = payload.email.toLowerCase();
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      res.status(409).json({ message: "Email already registered" });
-      return;
-    }
-
-    const passwordHash = await bcrypt.hash(payload.password, 12);
-
-    const user = await prisma.user.create({
-      data: {
-        name: payload.name.trim(),
-        email,
-        passwordHash,
-      },
-    });
-
-    const token = signAuthToken({
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-    });
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        createdAt: user.createdAt,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
+authRouter.post("/register", async (_req, res) => {
+  res.status(410).json({ message: "Use Firebase authentication instead of /auth/register" });
 });
 
-authRouter.post("/login", async (req, res, next) => {
+authRouter.post("/login", async (_req, res) => {
+  res.status(410).json({ message: "Use Firebase authentication instead of /auth/login" });
+});
+
+authRouter.post("/firebase", async (req, res, next) => {
   try {
-    const payload = loginSchema.parse(req.body);
-    const email = payload.email.toLowerCase();
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(401).json({ message: "Invalid credentials" });
+    if (!isFirebaseConfigured()) {
+      res.status(503).json({ message: "Firebase auth is not configured on server" });
       return;
     }
 
-    const valid = await bcrypt.compare(payload.password, user.passwordHash);
-    if (!valid) {
-      res.status(401).json({ message: "Invalid credentials" });
+    const payload = firebaseAuthSchema.parse(req.body);
+    const decoded = await verifyFirebaseIdToken(payload.idToken);
+    const email = decoded.email?.toLowerCase();
+
+    if (!email) {
+      res.status(400).json({ message: "Firebase token does not contain an email" });
+      return;
+    }
+    if (decoded.email_verified !== true) {
+      res.status(403).json({ message: "Email is not verified. Please verify your email before signing in." });
       return;
     }
 
-    const token = signAuthToken({
-      sub: user.id,
-      email: user.email,
-      name: user.name,
+    const displayName = (decoded.name ?? email.split("@")[0] ?? "User").trim().slice(0, 100) || "User";
+
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [{ firebaseUid: decoded.uid }, { email }],
+      },
     });
 
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          firebaseUid: decoded.uid,
+          email,
+          name: displayName,
+          passwordHash: "__firebase_auth__",
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          firebaseUid: decoded.uid,
+          email,
+          name: displayName,
+        },
+      });
+    }
+
     res.json({
-      token,
       user: {
         id: user.id,
         name: user.name,

@@ -5,15 +5,11 @@ import { Input } from '@/components/ui/input';
 import { ScanResult } from '@/types';
 import { useSettings } from '@/context/SettingsContext';
 import { toast } from 'sonner';
+import { getFirebaseAuthToken } from '@/lib/firebase';
 
 interface URLScannerProps {
   onScanComplete: (result: ScanResult) => void;
 }
-
-const CATEGORIES = [
-  'E-commerce', 'Education', 'Health', 'Banking', 
-  'Government', 'Entertainment', 'Social Media', 'Technology', 'Other'
-];
 
 export const URLScanner: React.FC<URLScannerProps> = ({ onScanComplete }) => {
   const [url, setUrl] = useState('');
@@ -67,16 +63,18 @@ export const URLScanner: React.FC<URLScannerProps> = ({ onScanComplete }) => {
       const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12000);
+      const token = await getFirebaseAuthToken();
 
       const response = await fetch(settings.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(localStorage.getItem('phishguard_token')
-            ? { Authorization: `Bearer ${localStorage.getItem('phishguard_token')}` }
-            : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ url: normalizedUrl }),
+        body: JSON.stringify({
+          url: normalizedUrl,
+          sensitivity: settings.detectionSensitivity,
+        }),
         signal: controller.signal,
       }).finally(() => clearTimeout(timeout));
 
