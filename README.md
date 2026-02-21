@@ -57,6 +57,43 @@ Run backend:
 npm run dev
 ```
 
+## Quickstart (friends setup)
+
+Run from repo root:
+
+```bash
+npm install
+npm --prefix backend install
+npm --prefix frontend install
+```
+
+Create env files from examples:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+Then set real values in both `.env` files.
+
+Run Prisma migration:
+
+```bash
+npm --prefix backend run prisma:migrate
+```
+
+Start app:
+
+```bash
+# terminal 1
+cd backend
+npm run dev
+
+# terminal 2
+cd frontend
+npm run dev
+```
+
 ## API Endpoints
 
 - `GET /health`
