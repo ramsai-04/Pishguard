@@ -8,8 +8,20 @@ import { detectCategory, extractDomain, extractFeatures } from "../ml/feature-ex
 import { applyRiskPolicy } from "../ml/risk-policy.js";
 import { evaluateDomainReputation } from "../ml/reputation.js";
 
+const isValidScannableUrl = (value: string): boolean => {
+  try {
+    const normalized = normalizeUrl(value.trim());
+    const parsed = new URL(normalized);
+    return Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
 const scanSchema = z.object({
-  url: z.string().min(4).max(2048),
+  url: z.string().min(4).max(2048).refine(isValidScannableUrl, {
+    message: "Enter a valid URL or domain",
+  }),
 });
 const historyQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(200),
@@ -157,6 +169,16 @@ scanRouter.post("/", requireAuth, async (req, res, next) => {
       safeCount,
       phishCount,
       timeoutMs: env.REPUTATION_TIMEOUT_MS,
+    }).catch((error) => {
+      console.error(
+        `[scan] reputation fallback for ${domain}: ${error instanceof Error ? error.message : "unknown error"}`
+      );
+      return {
+        delta: 0,
+        reasons: ["reputation services unavailable"],
+        preventBlocking: false,
+        externalMaliciousHit: false,
+      };
     });
 
     const probability = Math.max(0, Math.min(1, policy.adjustedProbability + reputation.delta));

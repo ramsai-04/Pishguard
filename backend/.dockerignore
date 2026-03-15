@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+npm-debug.log
+Dockerfile
+README.md
+vitest.config.ts
+src/ml/training/phishing.csv
+src/ml/training/DATASETS.md

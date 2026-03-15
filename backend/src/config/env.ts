@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1),
+  DIRECT_URL: z.string().default(""),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 chars"),
   JWT_EXPIRES_IN: z.string().default("7d"),
   PHISHING_THRESHOLD: z.coerce.number().min(0).max(1).default(0.62),

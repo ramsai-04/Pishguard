@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { env } from "../config/env.js";
 
@@ -18,7 +19,16 @@ export const errorHandler = (err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  if (env.NODE_ENV !== "production" && err instanceof Error) {
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    console.error(err);
+
+    res.status(503).json({
+      message: "Database is unavailable. Check DATABASE_URL/DIRECT_URL and confirm the PostgreSQL server is reachable.",
+    });
+    return;
+  }
+
+  if (err instanceof Error) {
     console.error(err);
   }
 

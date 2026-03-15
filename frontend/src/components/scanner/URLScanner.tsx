@@ -49,6 +49,14 @@ export const URLScanner: React.FC<URLScannerProps> = ({ onScanComplete }) => {
     checkedAt?: string;
   }
 
+  interface ApiErrorResponse {
+    message?: string;
+    errors?: Array<{
+      path?: string;
+      message?: string;
+    }>;
+  }
+
   const handleScan = async () => {
     if (!url.trim()) return;
 
@@ -65,11 +73,15 @@ export const URLScanner: React.FC<URLScannerProps> = ({ onScanComplete }) => {
       const timeout = setTimeout(() => controller.abort(), 12000);
       const token = await getFirebaseAuthToken();
 
+      if (!token) {
+        throw new Error('Please sign in before scanning a URL.');
+      }
+
       const response = await fetch(settings.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           url: normalizedUrl,
@@ -79,7 +91,15 @@ export const URLScanner: React.FC<URLScannerProps> = ({ onScanComplete }) => {
       }).finally(() => clearTimeout(timeout));
 
       if (!response.ok) {
-        throw new Error(`Scan API failed with status ${response.status}`);
+        const apiError = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+        const firstValidationMessage = apiError?.errors?.find((issue) => typeof issue.message === 'string')?.message;
+        if (response.status === 503) {
+          throw new Error(apiError?.message || 'Scan service is temporarily unavailable. Please check the backend database connection and try again.');
+        }
+        if (response.status === 401) {
+          throw new Error(apiError?.message || 'Your session expired. Please sign in again and retry the scan.');
+        }
+        throw new Error(firstValidationMessage || apiError?.message || `Scan API failed with status ${response.status}`);
       }
 
       const data = (await response.json()) as ScanApiResponse;

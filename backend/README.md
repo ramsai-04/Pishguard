@@ -12,6 +12,7 @@ cp .env.example .env
 Update:
 
 - `DATABASE_URL`
+- `DIRECT_URL` (optional for local app runtime, recommended for Prisma migrations)
 - `JWT_SECRET`
 - `PHISHING_DATASET_PATH` (example: `src/ml/training/phishing.csv`)
 - `PHISHING_MODEL_PATH` (example: `src/ml/models/xgboost-model.json`)
@@ -19,6 +20,8 @@ Update:
 - `PHISHING_LABEL_VALUE` (for this dataset use `0` as phishing)
 - `PHISHING_TRAIN_MAX_ROWS` (`0` = full dataset, any positive number = cap rows)
 - `PYTHON_BIN` (example: `python`)
+
+For Supabase PostgreSQL, `DATABASE_URL` is typically the pooled connection string and `DIRECT_URL` is the direct database connection string. Replace the placeholder values in `.env` with your own project credentials before starting the backend.
 
 ## Database
 

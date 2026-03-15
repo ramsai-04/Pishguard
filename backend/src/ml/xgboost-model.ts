@@ -36,6 +36,44 @@ const rejectAllPending = (message: string): void => {
   pending.clear();
 };
 
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
+const scoreHeuristically = (features: UrlFeatures): { probability: number; details: string[] } => {
+  let probability = 0.18;
+  const details: string[] = ["heuristic fallback scoring"];
+
+  if (features.isDomainIP) {
+    probability += 0.18;
+    details.push("IP address used as domain");
+  }
+  if (features.noOfSubDomain >= 3) {
+    probability += 0.1;
+    details.push("excessive subdomains");
+  }
+  if (features.hasObfuscation) {
+    probability += 0.14;
+    details.push("URL obfuscation detected");
+  }
+  if (!features.isHTTPS) {
+    probability += 0.1;
+    details.push("HTTP without TLS");
+  }
+  if (features.noOfQMarkInURL + features.noOfAmpersandInURL + features.noOfEqualsInURL >= 5) {
+    probability += 0.08;
+    details.push("suspicious query complexity");
+  }
+  if (features.digitRatioInURL > 0.2) {
+    probability += 0.08;
+    details.push("high numeric ratio in URL");
+  }
+  if (features.urlLength > 120) {
+    probability += 0.05;
+    details.push("unusually long URL");
+  }
+
+  return { probability: clamp01(probability), details };
+};
+
 const ensurePredictorWorker = (): void => {
   if (predictorProc) return;
 
@@ -78,18 +116,20 @@ const ensurePredictorWorker = (): void => {
 
   proc.stderr.on("data", (chunk) => {
     const text = chunk.toString().trim();
-    if (text && env.NODE_ENV !== "production") {
+    if (text) {
       console.error(`[xgboost-worker] ${text}`);
     }
   });
 
   proc.on("error", (err) => {
     predictorProc = null;
+    console.error(`[xgboost-worker] spawn error: ${err.message}`);
     rejectAllPending(`XGBoost worker spawn error: ${err.message}`);
   });
 
   proc.on("exit", (code, signal) => {
     predictorProc = null;
+    console.error(`[xgboost-worker] exited (code=${code ?? "null"}, signal=${signal ?? "null"})`);
     rejectAllPending(`XGBoost worker exited (code=${code ?? "null"}, signal=${signal ?? "null"})`);
   });
 };
@@ -105,30 +145,6 @@ export const initializePhishingModel = (): void => {
 export const scorePhishingProbability = async (
   features: UrlFeatures
 ): Promise<{ probability: number; details: string[] }> => {
-  ensurePredictorWorker();
-  if (!predictorProc) {
-    throw new Error("XGBoost worker unavailable");
-  }
-
-  const id = nextId();
-  const payload = {
-    id,
-    modelPath,
-    metaPath: modelMetaPath,
-    features: vectorizeFeatures(features),
-  };
-
-  const result = await new Promise<{ probability: number }>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error("XGBoost predictor timed out"));
-    }, workerWarmupTimeoutMs);
-
-    pending.set(id, { resolve, reject, timeout });
-    predictorProc!.stdin.write(`${JSON.stringify(payload)}\n`);
-  });
-  const probability = Number.isFinite(result.probability) ? result.probability : 0;
-
   const details: string[] = [];
   if (features.isDomainIP) details.push("IP address used as domain");
   if (features.noOfSubDomain >= 3) details.push("excessive subdomains");
@@ -139,7 +155,41 @@ export const scorePhishingProbability = async (
   }
   if (features.digitRatioInURL > 0.2) details.push("high numeric ratio in URL");
 
-  return { probability, details };
+  try {
+    ensurePredictorWorker();
+    if (!predictorProc) {
+      throw new Error("XGBoost worker unavailable");
+    }
+
+    const id = nextId();
+    const payload = {
+      id,
+      modelPath,
+      metaPath: modelMetaPath,
+      features: vectorizeFeatures(features),
+    };
+
+    const result = await new Promise<{ probability: number }>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error("XGBoost predictor timed out"));
+      }, workerWarmupTimeoutMs);
+
+      pending.set(id, { resolve, reject, timeout });
+      predictorProc!.stdin.write(`${JSON.stringify(payload)}\n`);
+    });
+    const probability = Number.isFinite(result.probability) ? clamp01(result.probability) : 0;
+    return { probability, details };
+  } catch (error) {
+    const fallback = scoreHeuristically(features);
+    console.error(
+      `[xgboost-worker] falling back to heuristic score: ${error instanceof Error ? error.message : "unknown error"}`
+    );
+    return {
+      probability: fallback.probability,
+      details: [...details, ...fallback.details],
+    };
+  }
 };
 
 export const buildExplanation = (isPhishing: boolean, probability: number, details: string[]): string => {

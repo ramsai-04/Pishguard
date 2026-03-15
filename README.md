@@ -1,65 +1,19 @@
 # PhishGuard Monorepo
 
-This repository is split into:
+PhishGuard is a full-stack phishing URL detection system.
 
-- `frontend/` - Vite + React client
-- `backend/` - Express + Prisma + PostgreSQL + URL phishing ML scoring
+- `frontend/`: Vite + React + Firebase Auth client
+- `backend/`: Express + Prisma + PostgreSQL + ML scoring API
 
-## 1. Frontend setup
+## Complete Documentation
 
-```bash
-cd frontend
-npm install
-cp .env.example .env
-```
+For full beginner-friendly documentation (architecture, setup, env vars, API, ML pipeline, and troubleshooting), read:
 
-Set:
+- `docs/BEGINNER_GUIDE.md`
 
-`VITE_API_BASE_URL=http://localhost:4000`
-`VITE_FIREBASE_API_KEY=...`
-`VITE_FIREBASE_AUTH_DOMAIN=...`
-`VITE_FIREBASE_PROJECT_ID=...`
-`VITE_FIREBASE_APP_ID=...`
+## Quickstart
 
-Run:
-
-```bash
-npm run dev
-```
-
-## 2. Backend setup
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-```
-
-Update `.env`:
-
-- `DATABASE_URL` for PostgreSQL
-- `JWT_SECRET` with a long random value
-- Firebase Admin credentials (for Firebase login verification):
-  - `FIREBASE_PROJECT_ID`
-  - `FIREBASE_CLIENT_EMAIL`
-  - `FIREBASE_PRIVATE_KEY` (use `\n` for line breaks)
-
-Generate Prisma client and migrate:
-
-```bash
-npx prisma generate
-npx prisma migrate dev --name init
-```
-
-Run backend:
-
-```bash
-npm run dev
-```
-
-## Quickstart (friends setup)
-
-Run from repo root:
+1. Install dependencies:
 
 ```bash
 npm install
@@ -67,22 +21,23 @@ npm --prefix backend install
 npm --prefix frontend install
 ```
 
-Create env files from examples:
+2. Create env files:
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Then set real values in both `.env` files.
+3. Configure required values in both `.env` files.
 
-Run Prisma migration:
+4. Prepare database:
 
 ```bash
+npm --prefix backend run prisma:generate
 npm --prefix backend run prisma:migrate
 ```
 
-Start app:
+5. Start apps:
 
 ```bash
 # terminal 1
@@ -94,18 +49,18 @@ cd frontend
 npm run dev
 ```
 
-## API Endpoints
+## Core Endpoints
 
 - `GET /health`
-- `POST /auth/register`
-- `POST /auth/login`
 - `POST /auth/firebase`
 - `GET /auth/me` (Bearer token)
 - `POST /scan` (Bearer token)
+- `GET /scan/history` (Bearer token)
+- `DELETE /scan/history` (Bearer token)
 - `POST /feedback` (Bearer token)
 
-## ML Model
+## ML Notes
 
-- Train an XGBoost model artifact with `npm --prefix backend run train:model`.
-- Backend loads the pre-trained artifact at startup from `PHISHING_MODEL_PATH`.
-- Runtime `/scan` uses inference only (no model training during requests).
+- Train model: `npm --prefix backend run train:model`
+- Runtime scans use inference only (no training during requests)
+- Model artifacts are loaded from paths configured in backend `.env`

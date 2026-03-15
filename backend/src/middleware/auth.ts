@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { verifyFirebaseIdToken } from "../lib/firebase-admin.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -53,7 +54,12 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       name: user.name,
     };
     next();
-  } catch {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      next(error);
+      return;
+    }
+
     res.status(401).json({ message: "Invalid or expired token" });
   }
 };
